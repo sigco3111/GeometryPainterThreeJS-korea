@@ -7,8 +7,9 @@ export function buildGui(app: App): GUI {
   const s = app.settings;
   const c = app.crystal;
 
-  // Live edits snap every existing stroke to fully grown so you see the change immediately.
-  const live = () => app.scheduleRegrow('instant');
+  // Crystal edits update existing strokes IN PLACE (no regeneration) — matrices and
+  // colors recompose on the live instanced meshes as you drag.
+  const live = () => app.updateCrystals();
 
   gui.add(s, 'mode', ['Crystals'] satisfies ModeName[]).name('Painting mode');
 
@@ -26,20 +27,21 @@ export function buildGui(app: App): GUI {
   fCrystal.add(c, 'spread', 0.3, 2.5).name('Cluster spread').onChange(live);
   fCrystal.add(c, 'tilt', 0, 1).name('Lean / wildness').onChange(live);
   fCrystal.add(c, 'sizeJitter', 0, 1).name('Size variety').onChange(live);
+  fCrystal.add(c, 'clearMix', 0, 1).name('Clear crystal mix').onChange(live);
   // Glow retints shared materials in place — instant, no regrow.
   fCrystal.add(c, 'glow', 0, 2).name('Inner glow').onChange((v: number) => app.setGlow(v));
 
   const fLook = gui.addFolder('Light & look (live)');
   fLook.add(s, 'exposure', 0.4, 2.2).name('Exposure').onChange((v: number) => app.setExposure(v));
   fLook.add(s, 'envIntensity', 0, 2.5).name('Studio light').onChange((v: number) => app.setEnvIntensity(v));
+  fLook.add(s, 'backlight', 0, 2.5).name('Backlight').onChange((v: number) => app.setBacklight(v));
   fLook.add(s, 'bloomStrength', 0, 1.5).name('Bloom').onChange((v: number) => app.setBloomStrength(v));
   fLook.add(s, 'bloomThreshold', 0.2, 1.5).name('Bloom threshold').onChange((v: number) => app.setBloomThreshold(v));
-  fLook.add(s, 'seed', 0, 999, 1).name('Seed').listen().onChange(live);
-  fLook.add({ random: () => app.randomizeSeed() }, 'random').name('🎲 Random seed');
+  // Reseeding genuinely regenerates (new randoms), so it goes through the rebuild path.
+  fLook.add(s, 'seed', 0, 999, 1).name('Seed').onChange(() => app.scheduleRegrow('instant'));
 
-  // Growth speed only shows when strokes animate, so it is NOT live — press Replay to preview.
   const fGrowth = gui.addFolder('Growth animation');
-  fGrowth.add(c, 'growthSpeed', 0.2, 4).name('Speed (needs Replay)');
+  fGrowth.add(c, 'growthSpeed', 0.2, 4).name('Speed').onChange(live);
   fGrowth.add({ replay: () => app.scheduleRegrow('animate') }, 'replay').name('▶ Replay growth');
 
   return gui;

@@ -1,5 +1,5 @@
 import * as THREE from 'three/webgpu';
-import { pass } from 'three/tsl';
+import { float, pass, screenUV, smoothstep, vec2 } from 'three/tsl';
 import { bloom } from 'three/addons/tsl/display/BloomNode.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { indexForRaycasts } from './bvh';
@@ -30,6 +30,7 @@ export interface AppSettings {
   seed: number;
   exposure: number;
   envIntensity: number;
+  backlight: number; // scales the kickers that stream light through the crystals
   bloomStrength: number;
   bloomThreshold: number;
 }
@@ -39,10 +40,11 @@ export class App {
     mode: 'Crystals',
     drawMode: true,
     seed: 1,
-    exposure: 1.15,
-    envIntensity: 1.0,
-    bloomStrength: 0.35,
-    bloomThreshold: 0.8,
+    exposure: 1.1,
+    envIntensity: 0.9,
+    backlight: 1,
+    bloomStrength: 0.4,
+    bloomThreshold: 0.75,
   };
 
   readonly crystal: CrystalSettings = { ...defaultCrystalSettings };
@@ -71,6 +73,8 @@ export class App {
 
   private dust!: THREE.Points;
   private dustVel: number[] = [];
+  /** The backlight/kicker pair, scaled together by the Backlight slider. */
+  private backLights: { light: THREE.DirectionalLight; base: number }[] = [];
 
   private hud = document.getElementById('hud')!;
   private lastTime = 0;
@@ -172,11 +176,12 @@ export class App {
       env.add(m);
     };
 
-    panel(0xffffff, 16, 7, 4.5, [0, 8, 0]);      // overhead softbox — the big soft key
-    panel(0x9db8ff, 6, 1.4, 7, [-7, 2, -2]);     // cool strip, camera-left
-    panel(0xffd9b0, 4.5, 1.8, 5, [6, 1.5, 3]);   // warm strip, camera-right
-    panel(0xa070ff, 2.6, 6, 3, [0, 2.5, -8]);    // violet wash behind the subject
-    panel(0x2e3c58, 1.4, 9, 9, [0, -5, 0]);      // dim floor bounce
+    panel(0xfff6ea, 9, 4.5, 3, [1.5, 8, 2]);     // overhead softbox, biased toward camera
+    panel(0xffffff, 22, 0.7, 4.5, [-2.5, 5, -6]); // hard top-back strip — facet glints
+    panel(0x9db8ff, 5, 1.2, 7, [-7, 2, -2]);     // cool strip, camera-left
+    panel(0xffd9b0, 3.5, 1.6, 5, [6, 1.5, 3]);   // warm strip, camera-right
+    panel(0x8a5cff, 4, 6, 3.5, [0, 2.5, -8]);    // violet wash behind the subject
+    panel(0x2e3c58, 1.2, 9, 9, [0, -5, 0]);      // dim floor bounce
 
     const pmrem = new THREE.PMREMGenerator(this.renderer);
     this.scene.environment = pmrem.fromScene(env, 0.04).texture;
@@ -185,28 +190,41 @@ export class App {
     geo.dispose();
   }
 
+  /**
+   * A cinematic three-point rig, tuned like a product macro shot:
+   *  - KEY: a focused warm spot from top-front-right with a soft penumbra — a pool of
+   *    light on the subject instead of a flat wash over the whole set.
+   *  - BACKLIGHT + KICKER: cool violet-blue from behind. These are what make the
+   *    transmissive crystals GLOW from within (transmission responds to light arriving
+   *    from behind the surface) — the signature of the reference look.
+   *  - FILL: a whisper of hemisphere so shadows never crush to pure black.
+   */
   private setupLights(): void {
-    // Analytic lights carry the shadows and shading gradients; the env map carries the look.
-    const hemi = new THREE.HemisphereLight(0xbdd0ff, 0x1a1622, 0.25);
+    const hemi = new THREE.HemisphereLight(0x8ea0c8, 0x0c0a14, 0.15);
 
-    const key = new THREE.DirectionalLight(0xfff0e0, 2.6);
-    key.position.set(3.5, 6, 2.5);
+    const key = new THREE.SpotLight(0xfff2e2, 70, 0, Math.PI / 5, 0.55, 1.8);
+    key.position.set(3.4, 5.6, 2.6);
+    key.target.position.set(0, 0, 0);
     key.castShadow = true;
     key.shadow.mapSize.set(2048, 2048);
     key.shadow.camera.near = 1;
     key.shadow.camera.far = 20;
-    key.shadow.camera.left = key.shadow.camera.bottom = -4;
-    key.shadow.camera.right = key.shadow.camera.top = 4;
-    key.shadow.bias = -0.0005;
+    key.shadow.bias = -0.0004;
     key.shadow.normalBias = 0.02;
-    key.shadow.radius = 6; // soft penumbra under the floating sphere
+    key.shadow.radius = 5; // soft penumbra under the floating sphere
 
-    const rim = new THREE.DirectionalLight(0x7f9dff, 1.1);
-    rim.position.set(-4, 2.5, -4);
+    const back = new THREE.DirectionalLight(0xa9b8ff, 2.4);
+    back.position.set(-3, 3.2, -4.5);
+    const kick = new THREE.DirectionalLight(0xcaa6ff, 1.2);
+    kick.position.set(4.5, 1.2, -3);
+    this.backLights = [
+      { light: back, base: 2.4 },
+      { light: kick, base: 1.2 },
+    ];
 
     // Faint violet underglow: lifts the sphere's shadowed underside off the floor,
     // selling the "floating" read.
-    const under = new THREE.PointLight(0x6a4bd6, 0.5, 6, 1.6);
+    const under = new THREE.PointLight(0x6a4bd6, 0.4, 6, 1.6);
     under.position.set(0, GROUND_Y + 0.25, 0);
 
     // The floor: near-black satin with a soft radial sheen, mostly there to catch the
@@ -228,21 +246,30 @@ export class App {
     ground.position.y = GROUND_Y;
     ground.receiveShadow = true;
 
-    this.scene.add(hemi, key, rim, under, ground);
+    // Backdrop: a huge inward-facing sphere with soft violet blooms over near-black,
+    // like the defocused studio behind a macro lens. Unlit and unfogged.
+    const backdrop = new THREE.Mesh(
+      new THREE.SphereGeometry(30, 32, 16),
+      new THREE.MeshBasicMaterial({ map: makeBackdropTexture(), side: THREE.BackSide, fog: false }),
+    );
+
+    this.scene.add(hemi, key, key.target, back, kick, under, ground, backdrop);
   }
 
-  /** The canvas itself: a lacquered obsidian sphere, hovering and slowly turning. */
+  /** The canvas itself: a satin basalt sphere — a quiet stage that lets the crystals star.
+   *  Matte enough that the studio doesn't mirror across it, with just enough clearcoat
+   *  for a soft polished-stone sheen at grazing angles. */
   private setupCanvasSphere(): void {
     const mat = new THREE.MeshPhysicalMaterial({
-      color: 0x23262f,
-      metalness: 0.12,
-      roughness: 0.34,
-      clearcoat: 1,
-      clearcoatRoughness: 0.06,
-      sheen: 0.25,
+      color: 0x1b1d24,
+      metalness: 0.05,
+      roughness: 0.52,
+      clearcoat: 0.35,
+      clearcoatRoughness: 0.3,
+      sheen: 0.15,
       sheenColor: new THREE.Color(0x5a6bb0),
-      sheenRoughness: 0.6,
-      envMapIntensity: 1.1,
+      sheenRoughness: 0.7,
+      envMapIntensity: 0.55,
     });
     this.sphere = new THREE.Mesh(new THREE.SphereGeometry(1, 96, 64), mat);
     this.sphere.castShadow = true;
@@ -283,13 +310,16 @@ export class App {
     this.scene.add(this.dust);
   }
 
-  /** Post: MSAA scene pass + bloom, tone-mapped on output. Bloom is what makes glow glow. */
+  /** Post: MSAA scene pass + bloom + a gentle lens vignette, tone-mapped on output. */
   private setupPost(): void {
     const scenePass = pass(this.scene, this.camera, { samples: 4 });
     const color = scenePass.getTextureNode();
-    this.bloomNode = bloom(color, this.settings.bloomStrength, 0.55, this.settings.bloomThreshold);
+    this.bloomNode = bloom(color, this.settings.bloomStrength, 0.6, this.settings.bloomThreshold);
+    // Vignette: full exposure in the middle, ~35% falloff into the corners — pulls the
+    // eye to the subject the way a fast lens does.
+    const vignette = float(1).sub(smoothstep(0.5, 0.92, screenUV.distance(vec2(0.5, 0.5))).mul(0.35));
     this.post = new THREE.PostProcessing(this.renderer);
-    this.post.outputNode = color.add(this.bloomNode);
+    this.post.outputNode = color.add(this.bloomNode).mul(vignette);
   }
 
   // ---------- strokes ----------
@@ -325,11 +355,6 @@ export class App {
     this.regrowPending = { mode };
   }
 
-  randomizeSeed(): void {
-    this.settings.seed = Math.floor(Math.random() * 1000);
-    this.scheduleRegrow('instant');
-  }
-
   undoLast(): void {
     this.strokes.pop();
     const s = this.live.pop();
@@ -350,6 +375,20 @@ export class App {
 
   // ---------- live (no-rebuild) setting paths ----------
 
+  /**
+   * Push the current crystal settings into every live stroke IN PLACE — matrices and
+   * colors update on the existing instanced meshes, nothing is recreated. Falls back to
+   * a rebuild only for stroke types that can't re-derive themselves.
+   */
+  updateCrystals(): void {
+    let needRebuild = false;
+    for (const s of this.live) {
+      if (s.applySettings) s.applySettings({ ...this.crystal });
+      else needRebuild = true;
+    }
+    if (needRebuild) this.scheduleRegrow('instant');
+  }
+
   setGlow(v: number): void {
     this.crystal.glow = v;
     setCrystalGlow(v);
@@ -363,6 +402,12 @@ export class App {
   setEnvIntensity(v: number): void {
     this.settings.envIntensity = v;
     this.scene.environmentIntensity = v;
+  }
+
+  /** Backlight slider: scales the rear rig — how hard light streams through the crystals. */
+  setBacklight(v: number): void {
+    this.settings.backlight = v;
+    for (const { light, base } of this.backLights) light.intensity = base * v;
   }
 
   setBloomStrength(v: number): void {
@@ -467,6 +512,37 @@ export class App {
 
     this.post.render();
   }
+}
+
+/**
+ * The out-of-focus studio behind the subject: near-black with two soft violet/blue blooms,
+ * like distant practicals through a wide-open lens. Painted once onto a canvas and wrapped
+ * on an inward-facing sphere.
+ */
+function makeBackdropTexture(): THREE.CanvasTexture {
+  const w = 1024;
+  const h = 512;
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#06070b';
+  ctx.fillRect(0, 0, w, h);
+
+  const blob = (x: number, y: number, r: number, rgba: string): void => {
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, rgba);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(x - r, y - r, r * 2, r * 2);
+  };
+  blob(w * 0.3, h * 0.38, 280, 'rgba(74, 52, 138, 0.34)');  // violet bloom, camera-left
+  blob(w * 0.78, h * 0.45, 220, 'rgba(40, 58, 118, 0.22)'); // cooler bloom, camera-right
+  blob(w * 0.55, h * 0.2, 180, 'rgba(120, 100, 190, 0.10)'); // faint high sparkle wash
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
 }
 
 /** Near-black satin floor with a soft radial sheen — a quiet stage for the sphere's shadow. */

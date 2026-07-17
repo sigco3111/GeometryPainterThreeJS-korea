@@ -27,6 +27,12 @@ export interface StrokeInstance {
   update(dt: number, time: number): void;
   /** Snap to fully grown (used when settings change and strokes rebuild in place). */
   finishGrowth(): void;
+  /**
+   * Re-derive the stroke's look from new settings IN PLACE (no dispose/recreate) —
+   * matrices and colors update on the existing instanced meshes. Modes that can't
+   * do this omit it and the app falls back to a rebuild.
+   */
+  applySettings?(settings: unknown): void;
   dispose(): void;
 }
 
