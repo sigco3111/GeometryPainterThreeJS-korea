@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { MeshBasicNodeMaterial } from 'three/webgpu';
 import {
-  abs, attribute, float, mix, positionLocal, smoothstep, time, uniform, vec3,
+  abs, attribute, float, mix, positionLocal, smoothstep, step, time, uniform, vec3,
 } from 'three/tsl';
 import { mulberry32, type PaintMode, type StrokeInstance, type SurfaceSample } from './mode';
 
@@ -34,20 +34,24 @@ const attrVec3 = (name: string) => vec3(attribute(name, 'vec3') as any);
  */
 
 export interface FissureSettings {
-  width: number;       // crack width (world units)
-  heat: number;        // core temperature/brightness multiplier
-  pulseSpeed: number;  // traveling heat-wave speed
-  emberRate: number;   // embers per second per world unit of open crack
-  rockDensity: number; // lip chunks per world unit (live-culled up to MAX_ROCKS)
-  rockSize: number;    // lip chunk size (world units)
-  lightSpill: number;  // flickering point-light intensity scale
-  growthSpeed: number; // crack propagation speed (world units / second)
+  width: number;        // crack width (world units)
+  heat: number;         // core temperature/brightness multiplier
+  pulseSpeed: number;   // traveling heat-wave speed
+  branchDensity: number; // side branches per world unit (live-culled up to MAX_BRANCHES)
+  branchLength: number;  // branch reach (world units, live-tapered up to MAX_BRANCH_LEN)
+  emberRate: number;    // embers per second per world unit of open crack
+  rockDensity: number;  // lip chunks per world unit (live-culled up to MAX_ROCKS)
+  rockSize: number;     // lip chunk size (world units)
+  lightSpill: number;   // flickering point-light intensity scale
+  growthSpeed: number;  // crack propagation speed (world units / second)
 }
 
 export const defaultFissureSettings: FissureSettings = {
   width: 0.055,
   heat: 1.5,
   pulseSpeed: 1,
+  branchDensity: 4,
+  branchLength: 0.24,
   emberRate: 26,
   rockDensity: 18,
   rockSize: 0.065,
@@ -57,6 +61,9 @@ export const defaultFissureSettings: FissureSettings = {
 
 /** Rock slots are generated at this density; the slider culls, never rebuilds. */
 export const MAX_ROCKS = 30;
+/** Branches are generated at these maxima; the sliders cull/taper them in the shader. */
+export const MAX_BRANCHES = 8;
+export const MAX_BRANCH_LEN = 0.6;
 
 const PATH_STEP = 0.025;     // centerline resample step (world units)
 const ROCK_GROW = 0.35;      // stroke-distance window over which a lip chunk pops in
@@ -151,7 +158,10 @@ interface PathPoint {
   pos: THREE.Vector3;    // on-surface centerline point (anchor space)
   normal: THREE.Vector3;
   side: THREE.Vector3;   // tangent × normal — the ribbon's across direction
-  dist: number;          // distance along the stroke
+  dist: number;          // distance along the stroke (branches: origin dist + walked)
+  walked: number;        // distance walked from the branch origin (0 on the main crack)
+  maxWalk: number;       // this branch's full generated length (1 on the main crack)
+  rank: number;          // branch culling rank (0 on the main crack → never culled)
 }
 
 /** Resample the painted samples into an even centerline with a stable tangent frame. */
@@ -171,54 +181,129 @@ function buildPath(samples: SurfaceSample[]): PathPoint[] {
     tangent.normalize();
     const normal = samples[i].localNormal.clone().normalize();
     const side = new THREE.Vector3().crossVectors(tangent, normal).normalize();
-    pts.push({ pos: samples[i].local.clone(), normal, side, dist: travelled });
+    pts.push({ pos: samples[i].local.clone(), normal, side, dist: travelled, walked: 0, maxWalk: 1, rank: 0 });
   }
   return pts;
 }
 
 /**
- * Ribbon geometry: two vertices per path point at the CENTERLINE (the across displacement
- * happens in the vertex shader via `aSide × width-uniform`), so the crack width is live.
+ * Grow lightning-like side branches off the main crack. Each walks across the surface
+ * from a point on the main path, veering and curving, at MAX length — the sliders then
+ * cull whole branches (rank vs density) and pull the taper in (walked vs length), both
+ * as shader uniforms, so branch controls are live with zero rebuilds.
+ *
+ * Surface following: positions re-project onto the sphere of radius |origin| around the
+ * anchor origin — exact for the sphere canvas, a fair approximation for gentle meshes.
  */
-function buildRibbonGeometry(path: PathPoint[], rnd: () => number): THREE.BufferGeometry {
-  const n = path.length;
-  const positions = new Float32Array(n * 2 * 3);
-  const sides = new Float32Array(n * 2 * 3);
-  const across = new Float32Array(n * 2);
-  const dists = new Float32Array(n * 2);
-  const jitters = new Float32Array(n * 2);
+function growBranches(main: PathPoint[], rnd: () => number): PathPoint[][] {
+  const branches: PathPoint[][] = [];
+  const spacing = 1 / MAX_BRANCHES;
+  let next = spacing * (0.3 + rnd() * 0.5);
+  let sideSign = rnd() < 0.5 ? 1 : -1;
+  const q = new THREE.Quaternion();
 
-  let jit = 1;
-  for (let i = 0; i < n; i++) {
-    const p = path[i];
-    // Smoothed random walk → organic width variation baked per point.
-    jit = THREE.MathUtils.clamp(jit + (rnd() - 0.5) * 0.35, 0.6, 1.45);
-    for (let k = 0; k < 2; k++) {
-      const vi = i * 2 + k;
-      positions[vi * 3] = p.pos.x + p.normal.x * 0.006;
-      positions[vi * 3 + 1] = p.pos.y + p.normal.y * 0.006;
-      positions[vi * 3 + 2] = p.pos.z + p.normal.z * 0.006;
-      sides[vi * 3] = p.side.x;
-      sides[vi * 3 + 1] = p.side.y;
-      sides[vi * 3 + 2] = p.side.z;
-      across[vi] = k === 0 ? -1 : 1;
-      dists[vi] = p.dist;
-      jitters[vi] = jit;
+  for (const origin of main) {
+    if (origin.dist < next) continue;
+    next = origin.dist + spacing * (0.7 + rnd() * 0.6);
+    sideSign = -sideSign;
+
+    const radius = origin.pos.length();
+    const maxWalk = MAX_BRANCH_LEN * (0.45 + rnd() * 0.75);
+    const curvature = (rnd() - 0.5) * 3; // radians of veer per unit walked
+    const rank = rnd();
+
+    // Launch direction: the main tangent swung 32°–72° to one side around the normal.
+    const tangent = new THREE.Vector3().crossVectors(origin.normal, origin.side);
+    const dir = tangent.clone().applyQuaternion(
+      q.setFromAxisAngle(origin.normal, sideSign * (0.55 + rnd() * 0.7)),
+    );
+
+    const pts: PathPoint[] = [];
+    const pos = origin.pos.clone();
+    const normal = origin.normal.clone();
+    for (let walked = 0; walked <= maxWalk; walked += PATH_STEP) {
+      pts.push({
+        pos: pos.clone(),
+        normal: normal.clone(),
+        side: new THREE.Vector3().crossVectors(dir, normal).normalize(),
+        dist: origin.dist + walked,
+        walked,
+        maxWalk,
+        rank,
+      });
+      // Step, re-project to the surface, re-orthogonalize and veer the direction.
+      pos.addScaledVector(dir, PATH_STEP);
+      if (radius > 1e-4) pos.setLength(radius);
+      normal.copy(pos).normalize();
+      dir.addScaledVector(normal, -dir.dot(normal)).normalize();
+      dir.applyQuaternion(q.setFromAxisAngle(normal, curvature * PATH_STEP));
+    }
+    if (pts.length >= 2) branches.push(pts);
+  }
+  return branches;
+}
+
+/**
+ * Ribbon geometry for the main crack + all its branches, in ONE indexed mesh. Vertices sit
+ * at the CENTERLINE (the across displacement happens in the vertex shader via
+ * `aSide × width-uniform × taper`), so crack width, branch density and branch length are
+ * all live. The main crack's width jitter is pinched to a point at both stroke ends;
+ * branches carry `aWalk`/`aMaxWalk`/`aRank` for the shader-side taper and culling.
+ */
+function buildRibbonGeometry(
+  segments: PathPoint[][],
+  total: number,
+  rnd: () => number,
+): THREE.BufferGeometry {
+  const positions: number[] = [];
+  const sides: number[] = [];
+  const across: number[] = [];
+  const dists: number[] = [];
+  const jitters: number[] = [];
+  const walks: number[] = [];
+  const maxWalks: number[] = [];
+  const ranks: number[] = [];
+  const indices: number[] = [];
+
+  for (const path of segments) {
+    const base = positions.length / 3;
+    const isBranch = path[0].rank > 0;
+    let jit = 1;
+    for (let i = 0; i < path.length; i++) {
+      const p = path[i];
+      // Smoothed random walk → organic width variation baked per point.
+      jit = THREE.MathUtils.clamp(jit + (rnd() - 0.5) * 0.35, 0.6, 1.45);
+      // Main crack: pinch to a point over the last 0.09 units at both ends.
+      // Branches: narrower than the main crack; their tip taper is dynamic (shader).
+      let w = jit;
+      if (isBranch) w *= 0.62;
+      else w *= THREE.MathUtils.clamp(Math.min(p.dist, total - p.dist) / 0.09, 0.04, 1);
+      for (let k = 0; k < 2; k++) {
+        positions.push(p.pos.x + p.normal.x * 0.006, p.pos.y + p.normal.y * 0.006, p.pos.z + p.normal.z * 0.006);
+        sides.push(p.side.x, p.side.y, p.side.z);
+        across.push(k === 0 ? -1 : 1);
+        dists.push(p.dist);
+        jitters.push(w);
+        walks.push(p.walked);
+        maxWalks.push(p.maxWalk);
+        ranks.push(p.rank);
+      }
+    }
+    for (let i = 0; i < path.length - 1; i++) {
+      const a = base + i * 2;
+      indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
     }
   }
 
-  const indices: number[] = [];
-  for (let i = 0; i < n - 1; i++) {
-    const a = i * 2;
-    indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
-  }
-
   const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geo.setAttribute('aSide', new THREE.BufferAttribute(sides, 3));
-  geo.setAttribute('aAcross', new THREE.BufferAttribute(across, 1));
-  geo.setAttribute('aDist', new THREE.BufferAttribute(dists, 1));
-  geo.setAttribute('aJit', new THREE.BufferAttribute(jitters, 1));
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geo.setAttribute('aSide', new THREE.Float32BufferAttribute(sides, 3));
+  geo.setAttribute('aAcross', new THREE.Float32BufferAttribute(across, 1));
+  geo.setAttribute('aDist', new THREE.Float32BufferAttribute(dists, 1));
+  geo.setAttribute('aJit', new THREE.Float32BufferAttribute(jitters, 1));
+  geo.setAttribute('aWalk', new THREE.Float32BufferAttribute(walks, 1));
+  geo.setAttribute('aMaxWalk', new THREE.Float32BufferAttribute(maxWalks, 1));
+  geo.setAttribute('aRank', new THREE.Float32BufferAttribute(ranks, 1));
   geo.setIndex(indices);
   return geo;
 }
@@ -277,7 +362,8 @@ class FissureStroke implements StrokeInstance {
   readonly group = new THREE.Group();
 
   private settings: FissureSettings;
-  private path: PathPoint[];
+  private path: PathPoint[];       // main crack only (lights, rocks)
+  private allPts: PathPoint[];     // main + branches (ember spawning)
   private readonly total: number;
   private grown = 0;
   private rocksDone = false;
@@ -288,6 +374,8 @@ class FissureStroke implements StrokeInstance {
   private uGlowWidth = uniform(0.16);
   private uHeat = uniform(1);
   private uPulse = uniform(1);
+  private uBranchFrac = uniform(0.5); // branchDensity / MAX_BRANCHES
+  private uLenFrac = uniform(0.4);    // branchLength / MAX_BRANCH_LEN
 
   private ribbonGeo!: THREE.BufferGeometry;
   private coreMat!: MeshBasicNodeMaterial;
@@ -306,13 +394,18 @@ class FissureStroke implements StrokeInstance {
     const rnd = mulberry32(seed);
     this.path = buildPath(samples);
     this.total = this.path.length ? this.path[this.path.length - 1].dist : 0;
+    const branches = growBranches(this.path, rnd);
+    this.allPts = [...this.path, ...branches.flat()];
 
-    // ----- ribbons (one geometry, two node materials) -----
-    this.ribbonGeo = buildRibbonGeometry(this.path, rnd);
+    // ----- ribbons (one geometry: main + branches, two node materials) -----
+    this.ribbonGeo = buildRibbonGeometry([this.path, ...branches], this.total, rnd);
 
     this.coreMat = new MeshBasicNodeMaterial();
     this.coreMat.transparent = true;
     this.coreMat.depthWrite = false;
+    // Additive: where two fissures (or a branch and its parent) cross, their light SUMS
+    // into a hotter junction instead of one crack's edge painting over the other.
+    this.coreMat.blending = THREE.AdditiveBlending;
     this.buildCoreNodes(this.coreMat);
     const coreMesh = new THREE.Mesh(this.ribbonGeo, this.coreMat);
     coreMesh.renderOrder = 2;
@@ -390,15 +483,35 @@ class FissureStroke implements StrokeInstance {
     this.applySettings(settings);
   }
 
+  /**
+   * Branch culling + tip taper, computed in the shader so the Branch sliders are live:
+   *  - `sel` — 1 while a branch's rank is under the density fraction (main crack rank=0,
+   *    so it always survives); culled branches collapse to zero width.
+   *  - `taper` — pinches a branch to a point at `branchLength`, wherever the slider is.
+   */
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type -- inferred TSL node types
+  private branchFactors() {
+    const aWalk = attrFloat('aWalk');
+    const aMaxWalk = attrFloat('aMaxWalk');
+    const aRank = attrFloat('aRank');
+    const sel = step(aRank, this.uBranchFrac);
+    const taper = float(1)
+      .sub(aWalk.div(aMaxWalk.mul(this.uLenFrac).add(1e-4)))
+      .clamp(0, 1)
+      .pow(0.7);
+    return { sel, taper };
+  }
+
   /** Blackbody-ish core: dark seam → deep red → orange → white-hot, pulsing along its length. */
   private buildCoreNodes(mat: MeshBasicNodeMaterial): void {
     const aAcross = attrFloat('aAcross');
     const aDist = attrFloat('aDist');
     const aJit = attrFloat('aJit');
     const aSide = attrVec3('aSide');
+    const { sel, taper } = this.branchFactors();
 
     mat.positionNode = positionLocal.add(
-      aSide.mul(this.uWidth.mul(0.5).mul(aAcross).mul(aJit)),
+      aSide.mul(this.uWidth.mul(0.5).mul(aAcross).mul(aJit)).mul(taper.mul(sel)),
     );
 
     const openness = smoothstep(0.0, 0.1, this.uGrown.sub(aDist));
@@ -407,7 +520,8 @@ class FissureStroke implements StrokeInstance {
     const flicker = time.mul(9).add(aDist.mul(41)).sin().mul(0.08).add(0.94);
     // White flash at the racing crack front.
     const flash = smoothstep(0.0, 0.22, abs(this.uGrown.sub(aDist))).oneMinus().mul(1.6);
-    const heat = center.mul(pulse).mul(flicker).mul(this.uHeat).add(flash);
+    // Branches run slightly cooler toward their tips.
+    const heat = center.mul(pulse).mul(flicker).mul(this.uHeat).mul(taper.mul(0.35).add(0.65)).add(flash);
 
     const cSeam = vec3(0.02, 0.004, 0.002);
     const cRed = vec3(1.1, 0.1, 0.01);
@@ -419,7 +533,7 @@ class FissureStroke implements StrokeInstance {
     mat.colorNode = color;
 
     const edge = smoothstep(0.82, 1.0, abs(aAcross)).oneMinus();
-    mat.opacityNode = openness.mul(edge);
+    mat.opacityNode = openness.mul(edge).mul(sel);
   }
 
   /** The wide additive halo that paints radiant orange onto the surrounding surface. */
@@ -428,17 +542,18 @@ class FissureStroke implements StrokeInstance {
     const aDist = attrFloat('aDist');
     const aJit = attrFloat('aJit');
     const aSide = attrVec3('aSide');
+    const { sel, taper } = this.branchFactors();
 
     mat.positionNode = positionLocal.add(
-      aSide.mul(this.uGlowWidth.mul(0.5).mul(aAcross).mul(aJit)),
+      aSide.mul(this.uGlowWidth.mul(0.5).mul(aAcross).mul(aJit)).mul(taper.mul(sel)),
     );
 
     const openness = smoothstep(0.0, 0.18, this.uGrown.sub(aDist));
     const falloff = abs(aAcross).oneMinus().max(0).pow(1.6);
     const pulse = aDist.mul(7).sub(time.mul(this.uPulse.mul(2.6))).sin().mul(0.22).add(0.78);
-    const strength = falloff.mul(pulse).mul(this.uHeat).mul(0.34);
+    const strength = falloff.mul(pulse).mul(this.uHeat).mul(taper.mul(0.5).add(0.5)).mul(0.34);
     mat.colorNode = vec3(1.5, 0.38, 0.05).mul(strength);
-    mat.opacityNode = openness;
+    mat.opacityNode = openness.mul(sel);
   }
 
   // ----- rocks -----
@@ -481,6 +596,8 @@ class FissureStroke implements StrokeInstance {
     this.uGlowWidth.value = s.width * 3.4 + 0.05;
     this.uHeat.value = s.heat;
     this.uPulse.value = s.pulseSpeed;
+    this.uBranchFrac.value = s.branchDensity / MAX_BRANCHES;
+    this.uLenFrac.value = s.branchLength / MAX_BRANCH_LEN;
 
     const densityFrac = s.rockDensity / MAX_ROCKS;
     for (let v = 0; v < ROCK_VARIANTS; v++) {
@@ -572,7 +689,14 @@ class FissureStroke implements StrokeInstance {
         this.emberSpawnDebt -= 1;
         const e = this.embers.find((x) => !x.alive);
         if (!e) break;
-        const p = this.pathAt(Math.random() * open);
+        // Spawn anywhere on the network — main crack or a LIVE part of a branch
+        // (respecting the current density/length sliders and the growth front).
+        const p = this.allPts[Math.floor(Math.random() * this.allPts.length)];
+        if (
+          p.dist > this.grown ||
+          p.rank > this.settings.branchDensity / MAX_BRANCHES ||
+          p.walked > p.maxWalk * (this.settings.branchLength / MAX_BRANCH_LEN)
+        ) continue;
         e.alive = true;
         e.pos.copy(p.pos)
           .addScaledVector(p.side, (Math.random() - 0.5) * this.settings.width * 0.7)

@@ -16,8 +16,10 @@ living instance the app grows, animates, undoes and rebuilds uniformly. More mod
   dispersion, six palettes (Amethyst, Ice, Emerald, Citrine, Rose, Prism), a live
   clear-quartz mix, elastic growth animation.
 - **Molten fissures** — strokes tear glowing cracks into the surface: a TSL-shaded
-  blackbody core with traveling heat pulses and a white-hot propagation front, basalt
-  rock lips, rising embers, and flickering orange light spill.
+  blackbody core with traveling heat pulses and a white-hot propagation front,
+  lightning-like side branches (live density/length controls), basalt rock lips, rising
+  embers, and flickering orange light spill. Crossing fissures blend additively into
+  hotter junctions.
 - _more coming…_
 
 ## The look

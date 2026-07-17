@@ -52,6 +52,8 @@ export function buildGui(app: App): GUI {
   fFissure.add(f, 'width', 0.02, 0.16).name('Crack width').onChange(liveFissure);
   fFissure.add(f, 'heat', 0.2, 3).name('Heat').onChange(liveFissure);
   fFissure.add(f, 'pulseSpeed', 0, 3).name('Pulse speed').onChange(liveFissure);
+  fFissure.add(f, 'branchDensity', 0, 8).name('Branches / unit').onChange(liveFissure);
+  fFissure.add(f, 'branchLength', 0.05, 0.6).name('Branch length').onChange(liveFissure);
   fFissure.add(f, 'emberRate', 0, 80).name('Embers').onChange(liveFissure);
   fFissure.add(f, 'rockDensity', 0, 30).name('Rock lips / unit').onChange(liveFissure);
   fFissure.add(f, 'rockSize', 0.03, 0.2).name('Rock size').onChange(liveFissure);
