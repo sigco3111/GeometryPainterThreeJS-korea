@@ -11,9 +11,10 @@ import {
   setCrystalGlow,
   type CrystalSettings,
 } from './modes/crystals';
+import { defaultFissureSettings, fissureMode, type FissureSettings } from './modes/fissures';
 import { buildGui } from './ui';
 
-export type ModeName = 'Crystals';
+export type ModeName = 'Crystals' | 'Molten fissures';
 
 const GROUND_Y = -1.55; // the floor the sphere floats above
 
@@ -48,11 +49,18 @@ export class App {
   };
 
   readonly crystal: CrystalSettings = { ...defaultCrystalSettings };
+  readonly fissure: FissureSettings = { ...defaultFissureSettings };
 
   /** Registry of painting modes — new modes plug in here. */
-  private modes: Record<ModeName, PaintMode<CrystalSettings>> = {
-    Crystals: crystalMode,
+  private modes: Record<ModeName, PaintMode<unknown>> = {
+    'Crystals': crystalMode as PaintMode<unknown>,
+    'Molten fissures': fissureMode as PaintMode<unknown>,
   };
+
+  /** Snapshot of the settings object a given mode consumes. */
+  private settingsFor(mode: ModeName): unknown {
+    return mode === 'Crystals' ? { ...this.crystal } : { ...this.fissure };
+  }
 
   private renderer!: THREE.WebGPURenderer;
   private post!: THREE.PostProcessing;
@@ -328,12 +336,16 @@ export class App {
     const stroke: Stroke = { samples, index: this.strokeCounter++, mode: this.settings.mode };
     this.strokes.push(stroke);
     this.buildStroke(stroke, true);
-    this.showToast('💎 crystals seeded — watch them grow');
+    this.showToast(
+      stroke.mode === 'Crystals'
+        ? '💎 crystals seeded — watch them grow'
+        : '🔥 fissure torn open — stand back',
+    );
   }
 
   private buildStroke(stroke: Stroke, animate: boolean): void {
     const seed = this.effectiveSeed(stroke.index);
-    const instance = this.modes[stroke.mode].createStroke(stroke.samples, seed, { ...this.crystal });
+    const instance = this.modes[stroke.mode].createStroke(stroke.samples, seed, this.settingsFor(stroke.mode));
     this.paintRoot.add(instance.group);
     this.live.push(instance);
     if (!animate) instance.finishGrowth();
@@ -376,14 +388,16 @@ export class App {
   // ---------- live (no-rebuild) setting paths ----------
 
   /**
-   * Push the current crystal settings into every live stroke IN PLACE — matrices and
-   * colors update on the existing instanced meshes, nothing is recreated. Falls back to
-   * a rebuild only for stroke types that can't re-derive themselves.
+   * Push a mode's current settings into its live strokes IN PLACE — matrices, colors and
+   * shader uniforms update on the existing objects, nothing is recreated. Falls back to a
+   * rebuild only for stroke types that can't re-derive themselves.
    */
-  updateCrystals(): void {
+  updateModeSettings(mode: ModeName): void {
     let needRebuild = false;
-    for (const s of this.live) {
-      if (s.applySettings) s.applySettings({ ...this.crystal });
+    for (let i = 0; i < this.live.length; i++) {
+      if (this.strokes[i].mode !== mode) continue;
+      const s = this.live[i];
+      if (s.applySettings) s.applySettings(this.settingsFor(mode));
       else needRebuild = true;
     }
     if (needRebuild) this.scheduleRegrow('instant');
@@ -445,14 +459,15 @@ export class App {
     const backend = (this.renderer.backend as { isWebGPUBackend?: boolean }).isWebGPUBackend
       ? 'WebGPU'
       : 'WebGL2 (fallback)';
+    const noun = this.settings.mode === 'Crystals' ? 'crystal vein' : 'molten fissure';
     let mode: string;
     if (this.settings.drawMode) {
       mode = this.hovering
-        ? '<b>Drag now</b> to paint a crystal vein across the sphere — it grows when you let go.'
-        : 'Move over the sphere, then <b>drag</b> to paint a crystal vein. Press <b>D</b> to orbit.';
+        ? `<b>Drag now</b> to paint a ${noun} across the sphere — it grows when you let go.`
+        : `Move over the sphere, then <b>drag</b> to paint a ${noun}. Press <b>D</b> to orbit.`;
     } else {
       mode = '<b>Orbit mode</b> — drag to rotate, scroll to zoom, right-drag to pan. ' +
-        'Press <b>D</b> to paint crystals.';
+        `Press <b>D</b> to paint.`;
     }
     this.hud.innerHTML = `${mode}<div class="sub">Mode: ${this.settings.mode} · Renderer: ${backend}</div>`;
   }

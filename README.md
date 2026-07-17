@@ -12,8 +12,12 @@ living instance the app grows, animates, undoes and rebuilds uniformly. More mod
 
 ## Modes
 
-- **Crystals** — transmissive, iridescent quartz clusters with colored absorption,
-  six palettes (Amethyst, Ice, Emerald, Citrine, Rose, Prism), elastic growth animation.
+- **Crystals** — transmissive, iridescent quartz clusters with colored absorption and
+  dispersion, six palettes (Amethyst, Ice, Emerald, Citrine, Rose, Prism), a live
+  clear-quartz mix, elastic growth animation.
+- **Molten fissures** — strokes tear glowing cracks into the surface: a TSL-shaded
+  blackbody core with traveling heat pulses and a white-hot propagation front, basalt
+  rock lips, rising embers, and flickering orange light spill.
 - _more coming…_
 
 ## The look
