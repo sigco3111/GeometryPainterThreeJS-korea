@@ -273,11 +273,13 @@ function buildRibbonGeometry(
       const p = path[i];
       // Smoothed random walk → organic width variation baked per point.
       jit = THREE.MathUtils.clamp(jit + (rnd() - 0.5) * 0.35, 0.6, 1.45);
-      // Main crack: pinch to a point over the last 0.09 units at both ends.
+      // Main crack: pinch to a TRUE zero-width point over the last 0.18 units at both
+      // ends — a crack terminates in a spike, not a rounded cap. The 0.65 exponent keeps
+      // the point long and needle-like instead of a linear wedge.
       // Branches: narrower than the main crack; their tip taper is dynamic (shader).
       let w = jit;
       if (isBranch) w *= 0.62;
-      else w *= THREE.MathUtils.clamp(Math.min(p.dist, total - p.dist) / 0.09, 0.04, 1);
+      else w *= Math.pow(THREE.MathUtils.clamp(Math.min(p.dist, total - p.dist) / 0.18, 0, 1), 0.65);
       for (let k = 0; k < 2; k++) {
         positions.push(p.pos.x + p.normal.x * 0.006, p.pos.y + p.normal.y * 0.006, p.pos.z + p.normal.z * 0.006);
         sides.push(p.side.x, p.side.y, p.side.z);
@@ -376,6 +378,7 @@ class FissureStroke implements StrokeInstance {
   private uPulse = uniform(1);
   private uBranchFrac = uniform(0.5); // branchDensity / MAX_BRANCHES
   private uLenFrac = uniform(0.4);    // branchLength / MAX_BRANCH_LEN
+  private uTotal = uniform(1);        // main crack length, for the tip light fade
 
   private ribbonGeo!: THREE.BufferGeometry;
   private coreMat!: MeshBasicNodeMaterial;
@@ -394,6 +397,7 @@ class FissureStroke implements StrokeInstance {
     const rnd = mulberry32(seed);
     this.path = buildPath(samples);
     this.total = this.path.length ? this.path[this.path.length - 1].dist : 0;
+    this.uTotal.value = Math.max(this.total, 1e-3);
     const branches = growBranches(this.path, rnd);
     this.allPts = [...this.path, ...branches.flat()];
 
@@ -484,22 +488,32 @@ class FissureStroke implements StrokeInstance {
   }
 
   /**
-   * Branch culling + tip taper, computed in the shader so the Branch sliders are live:
+   * Branch culling + tip shaping, computed in the shader so the sliders stay live:
    *  - `sel` — 1 while a branch's rank is under the density fraction (main crack rank=0,
    *    so it always survives); culled branches collapse to zero width.
    *  - `taper` — pinches a branch to a point at `branchLength`, wherever the slider is.
+   *  - `tip` — dims the LIGHT into the main crack's needle points, so the glow dies into
+   *    the spike instead of haloing it into a rounded cap. Branches are exempt (their
+   *    aDist can exceed the main length) — their own taper already cools their tips.
    */
   // eslint-disable-next-line @typescript-eslint/explicit-function-return-type -- inferred TSL node types
   private branchFactors() {
     const aWalk = attrFloat('aWalk');
     const aMaxWalk = attrFloat('aMaxWalk');
     const aRank = attrFloat('aRank');
+    const aDist = attrFloat('aDist');
     const sel = step(aRank, this.uBranchFrac);
     const taper = float(1)
       .sub(aWalk.div(aMaxWalk.mul(this.uLenFrac).add(1e-4)))
       .clamp(0, 1)
       .pow(0.7);
-    return { sel, taper };
+    const isBranch = step(1e-5, aRank);
+    const tip = mix(
+      smoothstep(0.0, 0.16, aDist.min(this.uTotal.sub(aDist))),
+      float(1),
+      isBranch,
+    );
+    return { sel, taper, tip };
   }
 
   /** Blackbody-ish core: dark seam → deep red → orange → white-hot, pulsing along its length. */
@@ -508,7 +522,7 @@ class FissureStroke implements StrokeInstance {
     const aDist = attrFloat('aDist');
     const aJit = attrFloat('aJit');
     const aSide = attrVec3('aSide');
-    const { sel, taper } = this.branchFactors();
+    const { sel, taper, tip } = this.branchFactors();
 
     mat.positionNode = positionLocal.add(
       aSide.mul(this.uWidth.mul(0.5).mul(aAcross).mul(aJit)).mul(taper.mul(sel)),
@@ -518,10 +532,13 @@ class FissureStroke implements StrokeInstance {
     const center = smoothstep(0.12, 1.0, abs(aAcross)).oneMinus();
     const pulse = aDist.mul(7).sub(time.mul(this.uPulse.mul(2.6))).sin().mul(0.28).add(0.72);
     const flicker = time.mul(9).add(aDist.mul(41)).sin().mul(0.08).add(0.94);
-    // White flash at the racing crack front.
-    const flash = smoothstep(0.0, 0.22, abs(this.uGrown.sub(aDist))).oneMinus().mul(1.6);
-    // Branches run slightly cooler toward their tips.
-    const heat = center.mul(pulse).mul(flicker).mul(this.uHeat).mul(taper.mul(0.35).add(0.65)).add(flash);
+    // White flash at the racing crack front (also dimmed into the tips).
+    const flash = smoothstep(0.0, 0.22, abs(this.uGrown.sub(aDist))).oneMinus().mul(1.6).mul(tip);
+    // Branches run cooler toward their tips; the main crack's light dies into its points.
+    const heat = center.mul(pulse).mul(flicker).mul(this.uHeat)
+      .mul(taper.mul(0.35).add(0.65))
+      .mul(tip.mul(0.85).add(0.15))
+      .add(flash);
 
     const cSeam = vec3(0.02, 0.004, 0.002);
     const cRed = vec3(1.1, 0.1, 0.01);
@@ -542,7 +559,7 @@ class FissureStroke implements StrokeInstance {
     const aDist = attrFloat('aDist');
     const aJit = attrFloat('aJit');
     const aSide = attrVec3('aSide');
-    const { sel, taper } = this.branchFactors();
+    const { sel, taper, tip } = this.branchFactors();
 
     mat.positionNode = positionLocal.add(
       aSide.mul(this.uGlowWidth.mul(0.5).mul(aAcross).mul(aJit)).mul(taper.mul(sel)),
@@ -551,7 +568,9 @@ class FissureStroke implements StrokeInstance {
     const openness = smoothstep(0.0, 0.18, this.uGrown.sub(aDist));
     const falloff = abs(aAcross).oneMinus().max(0).pow(1.6);
     const pulse = aDist.mul(7).sub(time.mul(this.uPulse.mul(2.6))).sin().mul(0.22).add(0.78);
-    const strength = falloff.mul(pulse).mul(this.uHeat).mul(taper.mul(0.5).add(0.5)).mul(0.34);
+    // The halo fades out entirely at the tips — a glow blob past the point would read as
+    // a rounded end and undo the spike.
+    const strength = falloff.mul(pulse).mul(this.uHeat).mul(taper.mul(0.5).add(0.5)).mul(tip).mul(0.34);
     mat.colorNode = vec3(1.5, 0.38, 0.05).mul(strength);
     mat.opacityNode = openness.mul(sel);
   }
