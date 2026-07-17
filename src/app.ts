@@ -13,9 +13,10 @@ import {
 } from './modes/crystals';
 import { defaultFissureSettings, fissureMode, type FissureSettings } from './modes/fissures';
 import { auroraMode, defaultAuroraSettings, type AuroraSettings } from './modes/aurora';
+import { defaultReefSettings, reefMode, type ReefSettings } from './modes/reef';
 import { buildGui } from './ui';
 
-export type ModeName = 'Crystals' | 'Molten fissures' | 'Aurora silk';
+export type ModeName = 'Crystals' | 'Molten fissures' | 'Aurora silk' | 'Bioluminescent reef';
 
 const GROUND_Y = -1.55; // the floor the sphere floats above
 
@@ -52,12 +53,14 @@ export class App {
   readonly crystal: CrystalSettings = { ...defaultCrystalSettings };
   readonly fissure: FissureSettings = { ...defaultFissureSettings };
   readonly aurora: AuroraSettings = { ...defaultAuroraSettings };
+  readonly reef: ReefSettings = { ...defaultReefSettings };
 
   /** Registry of painting modes — new modes plug in here. */
   private modes: Record<ModeName, PaintMode<unknown>> = {
     'Crystals': crystalMode as PaintMode<unknown>,
     'Molten fissures': fissureMode as PaintMode<unknown>,
     'Aurora silk': auroraMode as PaintMode<unknown>,
+    'Bioluminescent reef': reefMode as PaintMode<unknown>,
   };
 
   /** Snapshot of the settings object a given mode consumes. */
@@ -66,6 +69,7 @@ export class App {
       case 'Crystals': return { ...this.crystal };
       case 'Molten fissures': return { ...this.fissure };
       case 'Aurora silk': return { ...this.aurora };
+      case 'Bioluminescent reef': return { ...this.reef };
     }
   }
 
@@ -347,6 +351,7 @@ export class App {
       'Crystals': '💎 crystals seeded — watch them grow',
       'Molten fissures': '🔥 fissure torn open — stand back',
       'Aurora silk': '🌌 aurora silk unfurling — look up',
+      'Bioluminescent reef': '🪸 reef colony seeded — watch it come alive',
     };
     this.showToast(toasts[stroke.mode]);
   }
@@ -471,6 +476,7 @@ export class App {
       'Crystals': 'crystal vein',
       'Molten fissures': 'molten fissure',
       'Aurora silk': 'silk of aurora',
+      'Bioluminescent reef': 'reef colony',
     };
     const noun = nouns[this.settings.mode];
     let mode: string;

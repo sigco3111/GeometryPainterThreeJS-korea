@@ -2,6 +2,7 @@ import GUI from 'lil-gui';
 import type { App, ModeName } from './app';
 import type { CrystalPaletteName } from './modes/crystals';
 import type { AuroraPaletteName } from './modes/aurora';
+import type { ReefPaletteName } from './modes/reef';
 
 export function buildGui(app: App): GUI {
   const gui = new GUI({ title: 'Geometry Painter' });
@@ -9,19 +10,22 @@ export function buildGui(app: App): GUI {
   const c = app.crystal;
   const f = app.fissure;
   const a = app.aurora;
+  const r = app.reef;
 
   // Mode edits update existing strokes IN PLACE (no regeneration) — matrices, colors and
   // shader uniforms recompose on the live objects as you drag.
   const liveCrystal = () => app.updateModeSettings('Crystals');
   const liveFissure = () => app.updateModeSettings('Molten fissures');
   const liveAurora = () => app.updateModeSettings('Aurora silk');
+  const liveReef = () => app.updateModeSettings('Bioluminescent reef');
 
   const crystalFolders: GUI[] = [];
   const fissureFolders: GUI[] = [];
   const auroraFolders: GUI[] = [];
+  const reefFolders: GUI[] = [];
 
   gui
-    .add(s, 'mode', ['Crystals', 'Molten fissures', 'Aurora silk'] satisfies ModeName[])
+    .add(s, 'mode', ['Crystals', 'Molten fissures', 'Aurora silk', 'Bioluminescent reef'] satisfies ModeName[])
     .name('Painting mode')
     .onChange((m: ModeName) => {
       syncFolders(m);
@@ -80,6 +84,23 @@ export function buildGui(app: App): GUI {
   fAurora.add(a, 'growthSpeed', 0.3, 4).name('Unfurl speed').onChange(liveAurora);
   auroraFolders.push(fAurora);
 
+  // ---------- bioluminescent reef ----------
+
+  const fReef = gui.addFolder('Bioluminescent reef (live)');
+  const reefPalettes: ReefPaletteName[] = ['Abyss', 'Tropic', 'Ghost', 'Toxic'];
+  fReef.add(r, 'palette', reefPalettes).name('Palette').onChange(liveReef);
+  fReef.add(r, 'colonySize', 0.08, 0.35).name('Colony size').onChange(liveReef);
+  fReef.add(r, 'density', 2, 14).name('Colonies / unit').onChange(liveReef);
+  fReef.add(r, 'branching', 0, 1).name('Branching').onChange(liveReef);
+  fReef.add(r, 'tendrils', 0, 14, 1).name('Anemone arms').onChange(liveReef);
+  fReef.add(r, 'glow', 0, 2.5).name('Bioluminescence').onChange(liveReef);
+  fReef.add(r, 'pulseSpeed', 0, 3).name('Pulse speed').onChange(liveReef);
+  fReef.add(r, 'sway', 0, 1).name('Current sway').onChange(liveReef);
+  fReef.add(r, 'plankton', 0, 220, 1).name('Plankton').onChange(liveReef);
+  fReef.add(r, 'lightSpill', 0, 3).name('Light spill').onChange(liveReef);
+  fReef.add(r, 'growthSpeed', 0.3, 4).name('Bloom speed').onChange(liveReef);
+  reefFolders.push(fReef);
+
   // ---------- shared ----------
 
   const fLook = gui.addFolder('Light & look (live)');
@@ -98,6 +119,7 @@ export function buildGui(app: App): GUI {
     for (const g of crystalFolders) (m === 'Crystals' ? g.show() : g.hide());
     for (const g of fissureFolders) (m === 'Molten fissures' ? g.show() : g.hide());
     for (const g of auroraFolders) (m === 'Aurora silk' ? g.show() : g.hide());
+    for (const g of reefFolders) (m === 'Bioluminescent reef' ? g.show() : g.hide());
   }
   syncFolders(s.mode);
 

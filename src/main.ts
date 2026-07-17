@@ -1,6 +1,8 @@
 import { App } from './app';
 
 const app = new App(document.getElementById('app') as HTMLElement);
+// Debug/scripting hook (used by the automated visual tests).
+(window as unknown as { __app: App }).__app = app;
 
 app.start().catch((err: Error) => {
   console.error(err);

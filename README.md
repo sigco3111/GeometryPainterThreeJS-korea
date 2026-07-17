@@ -24,6 +24,10 @@ living instance the app grows, animates, undoes and rebuilds uniformly. More mod
   layered sine waves in the vertex stage, fold-locked brightness (the cloth glows along
   its moving folds), drifting ray striations, a glowing hem, twinkling star motes, and
   four palettes including a cosine-cycling Spectrum.
+- **Bioluminescent reef** — strokes seed living deep-sea colonies: recursively branched
+  staghorn corals studded with glowing polyps, swaying anemones, gorgonian fan lattices,
+  drifting plankton — all pulsing on one traveling light wave that ripples through the
+  whole reef like a signal through a single organism.
 - _more coming…_
 
 ## The look
