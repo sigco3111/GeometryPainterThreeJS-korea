@@ -20,6 +20,10 @@ living instance the app grows, animates, undoes and rebuilds uniformly. More mod
   lightning-like side branches (live density/length controls), basalt rock lips, rising
   embers, and flickering orange light spill. Crossing fissures blend additively into
   hotter junctions.
+- **Aurora silk** — strokes unfurl waving curtains of light: two silk layers displaced by
+  layered sine waves in the vertex stage, fold-locked brightness (the cloth glows along
+  its moving folds), drifting ray striations, a glowing hem, twinkling star motes, and
+  four palettes including a cosine-cycling Spectrum.
 - _more coming…_
 
 ## The look

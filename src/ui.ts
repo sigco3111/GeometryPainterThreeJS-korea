@@ -1,23 +1,27 @@
 import GUI from 'lil-gui';
 import type { App, ModeName } from './app';
 import type { CrystalPaletteName } from './modes/crystals';
+import type { AuroraPaletteName } from './modes/aurora';
 
 export function buildGui(app: App): GUI {
   const gui = new GUI({ title: 'Geometry Painter' });
   const s = app.settings;
   const c = app.crystal;
   const f = app.fissure;
+  const a = app.aurora;
 
   // Mode edits update existing strokes IN PLACE (no regeneration) — matrices, colors and
   // shader uniforms recompose on the live objects as you drag.
   const liveCrystal = () => app.updateModeSettings('Crystals');
   const liveFissure = () => app.updateModeSettings('Molten fissures');
+  const liveAurora = () => app.updateModeSettings('Aurora silk');
 
   const crystalFolders: GUI[] = [];
   const fissureFolders: GUI[] = [];
+  const auroraFolders: GUI[] = [];
 
   gui
-    .add(s, 'mode', ['Crystals', 'Molten fissures'] satisfies ModeName[])
+    .add(s, 'mode', ['Crystals', 'Molten fissures', 'Aurora silk'] satisfies ModeName[])
     .name('Painting mode')
     .onChange((m: ModeName) => {
       syncFolders(m);
@@ -61,6 +65,21 @@ export function buildGui(app: App): GUI {
   fFissure.add(f, 'growthSpeed', 0.5, 6).name('Crack speed').onChange(liveFissure);
   fissureFolders.push(fFissure);
 
+  // ---------- aurora silk ----------
+
+  const fAurora = gui.addFolder('Aurora silk (live)');
+  const auroraPalettes: AuroraPaletteName[] = ['Borealis', 'Twilight', 'Ember', 'Spectrum'];
+  fAurora.add(a, 'palette', auroraPalettes).name('Palette').onChange(liveAurora);
+  fAurora.add(a, 'height', 0.15, 1.3).name('Curtain height').onChange(liveAurora);
+  fAurora.add(a, 'wave', 0, 1).name('Billow').onChange(liveAurora);
+  fAurora.add(a, 'flow', 0, 3).name('Flow speed').onChange(liveAurora);
+  fAurora.add(a, 'rays', 0, 1).name('Ray streaks').onChange(liveAurora);
+  fAurora.add(a, 'brightness', 0.2, 2.5).name('Brightness').onChange(liveAurora);
+  fAurora.add(a, 'sparkles', 0, 240, 1).name('Star motes').onChange(liveAurora);
+  fAurora.add(a, 'lightSpill', 0, 3).name('Light spill').onChange(liveAurora);
+  fAurora.add(a, 'growthSpeed', 0.3, 4).name('Unfurl speed').onChange(liveAurora);
+  auroraFolders.push(fAurora);
+
   // ---------- shared ----------
 
   const fLook = gui.addFolder('Light & look (live)');
@@ -78,6 +97,7 @@ export function buildGui(app: App): GUI {
   function syncFolders(m: ModeName): void {
     for (const g of crystalFolders) (m === 'Crystals' ? g.show() : g.hide());
     for (const g of fissureFolders) (m === 'Molten fissures' ? g.show() : g.hide());
+    for (const g of auroraFolders) (m === 'Aurora silk' ? g.show() : g.hide());
   }
   syncFolders(s.mode);
 

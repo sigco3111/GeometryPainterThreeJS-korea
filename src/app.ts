@@ -12,9 +12,10 @@ import {
   type CrystalSettings,
 } from './modes/crystals';
 import { defaultFissureSettings, fissureMode, type FissureSettings } from './modes/fissures';
+import { auroraMode, defaultAuroraSettings, type AuroraSettings } from './modes/aurora';
 import { buildGui } from './ui';
 
-export type ModeName = 'Crystals' | 'Molten fissures';
+export type ModeName = 'Crystals' | 'Molten fissures' | 'Aurora silk';
 
 const GROUND_Y = -1.55; // the floor the sphere floats above
 
@@ -50,16 +51,22 @@ export class App {
 
   readonly crystal: CrystalSettings = { ...defaultCrystalSettings };
   readonly fissure: FissureSettings = { ...defaultFissureSettings };
+  readonly aurora: AuroraSettings = { ...defaultAuroraSettings };
 
   /** Registry of painting modes — new modes plug in here. */
   private modes: Record<ModeName, PaintMode<unknown>> = {
     'Crystals': crystalMode as PaintMode<unknown>,
     'Molten fissures': fissureMode as PaintMode<unknown>,
+    'Aurora silk': auroraMode as PaintMode<unknown>,
   };
 
   /** Snapshot of the settings object a given mode consumes. */
   private settingsFor(mode: ModeName): unknown {
-    return mode === 'Crystals' ? { ...this.crystal } : { ...this.fissure };
+    switch (mode) {
+      case 'Crystals': return { ...this.crystal };
+      case 'Molten fissures': return { ...this.fissure };
+      case 'Aurora silk': return { ...this.aurora };
+    }
   }
 
   private renderer!: THREE.WebGPURenderer;
@@ -336,11 +343,12 @@ export class App {
     const stroke: Stroke = { samples, index: this.strokeCounter++, mode: this.settings.mode };
     this.strokes.push(stroke);
     this.buildStroke(stroke, true);
-    this.showToast(
-      stroke.mode === 'Crystals'
-        ? '💎 crystals seeded — watch them grow'
-        : '🔥 fissure torn open — stand back',
-    );
+    const toasts: Record<ModeName, string> = {
+      'Crystals': '💎 crystals seeded — watch them grow',
+      'Molten fissures': '🔥 fissure torn open — stand back',
+      'Aurora silk': '🌌 aurora silk unfurling — look up',
+    };
+    this.showToast(toasts[stroke.mode]);
   }
 
   private buildStroke(stroke: Stroke, animate: boolean): void {
@@ -459,7 +467,12 @@ export class App {
     const backend = (this.renderer.backend as { isWebGPUBackend?: boolean }).isWebGPUBackend
       ? 'WebGPU'
       : 'WebGL2 (fallback)';
-    const noun = this.settings.mode === 'Crystals' ? 'crystal vein' : 'molten fissure';
+    const nouns: Record<ModeName, string> = {
+      'Crystals': 'crystal vein',
+      'Molten fissures': 'molten fissure',
+      'Aurora silk': 'silk of aurora',
+    };
+    const noun = nouns[this.settings.mode];
     let mode: string;
     if (this.settings.drawMode) {
       mode = this.hovering
