@@ -56,3 +56,27 @@ npm run dev
 ```
 
 Requires a browser with WebGPU (recent Chrome/Edge) — falls back to WebGL2.
+
+## Demos — how it works, one piece at a time
+
+Ten standalone pages under [`/demos`](demos/), each isolating a single mechanism and looping it so
+it can be watched (or screen-recorded) on its own. Most drive the production code directly.
+Start the dev server and open **`/demos/`**.
+
+| | Page | Shows |
+| --- | --- | --- |
+| 01 | [`picking`](demos/picking.html) | Raycast → hit, normal, tangent frame. BVH on/off with the pick cost. |
+| 02 | [`anchor-space`](demos/anchor-space.html) | World space vs. anchor space on a canvas that keeps turning. |
+| 03 | [`resample`](demos/resample.html) | Raw pointer samples vs. the evenly stepped centreline. |
+| 04 | [`cull`](demos/cull.html) | Real crystal mode, real sliders, zero rebuilds. Culled instances shown as ghosts. |
+| 05 | [`growth`](demos/growth.html) | Birth distance, growth window, linear vs. `easeOutBack`. |
+| 06 | [`ribbon`](demos/ribbon.html) | The fissure strip with every vertex on the centreline; width lives in the shader. |
+| 07 | [`blackbody`](demos/blackbody.html) | The heat ramp, one term at a time. |
+| 08 | [`fold-light`](demos/fold-light.html) | Sharing the wave phase between vertex and fragment stages. |
+| 09 | [`colony-pulse`](demos/colony-pulse.html) | A world-space pulse vs. per-object phase. |
+| 10 | [`studio`](demos/studio.html) | The six env panels and the highlights each one makes. |
+
+Add `?still=4` to any demo URL to simulate four seconds, draw one frame and stop — useful for
+stills, and it lets a headless browser capture the page (an endless `rAF` loop never goes idle).
+
+A long-form write-up of all of this lives in [ARTICLE.md](ARTICLE.md).
