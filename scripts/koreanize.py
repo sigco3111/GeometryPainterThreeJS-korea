@@ -81,7 +81,7 @@ STRINGS = {
     "Branching": "분기",
     "Anemone arms": "해변동물 촉수",
     "Bioluminescence": "생물발광",
-    "Current sway": "�름 흔들림",
+    "Current sway": "흐름 흔들림",
     "Plankton": "플랑크톤",
 
     # === Light & look 컨트롤 ===
@@ -139,6 +139,84 @@ STRINGS = {
     "Renderer: ": "렌더러: ",
     "Mode: ": "모드: ",
 
+    # === 데모 페이지 카테고리 ===
+    "PAINTING": "페인팅",
+    "ARCHITECTURE": "아키텍처",
+    "SHADERS": "셰이더",
+    "LOOK": "룩",
+
+    # === 데모 index.html 카드 (10개) ===
+    "Surface picking &amp; the tangent frame":
+        "표면 선택 &amp; 탄젠트 프레임",
+    "Surface picking & the tangent frame":
+        "표면 선택 & 탄젠트 프레임",
+    "One raycast becomes a point, a normal and the little basis every mode builds in. BVH on and off.":
+        "하나의 레이캐스트가 점, 법선, 모든 모드가 사용하는 작은 기저 벡터가 됩니다. BVH 켜기/끄기.",
+    "Painting on a canvas that moves":
+        "움직이는 캔버스에 페인팅",
+    "World space versus anchor space, on two spheres that won't stop turning.":
+        "두 개의 회전하는 구체에서 월드 스페이스 vs 앵커 스페이스.",
+    "From pointer events to a centreline":
+        "포인터 이벤트에서 중심선으로",
+    "Why raw pointer samples can't space anything, and what the modes get instead.":
+        "왜 거친 포인터 샘플로는 간격이 일정해지지 않는지, 그리고 모드가 대신 받는 것은 무엇인지.",
+    "Generate at the maximum, cull with the slider":
+        "최대치로 생성하고 슬라이더로 컬링",
+    "The real crystal mode, with a rebuild counter that never moves.":
+        "실제 크리스털 모드, 리빌드 카운터는 한 번도 움직이지 않습니다.",
+    "The growth front":
+        "성장 전선",
+    "Birth distance, growth window and the 5% overshoot that sells the pop.":
+        "탄생 거리, 성장 윈도우, 그리고 그 팝(pop)을 완성시키는 5% 오버슈트.",
+    "A ribbon with no width":
+        "너비가 없는 리본",
+    "Every crack vertex sits on the centreline. The width is a uniform.":
+        "모든 균열 정점이 중심선 위에 있습니다. 너비는 uniform입니다.",
+    "Building the heat ramp":
+        "열 램프 만들기",
+    "Four terms multiplied into one float, then pushed through a blackbody ramp.":
+        "네 항을 곱해 하나의 float로 만든 다음 흑체 램프를 통과시킵니다.",
+    "Fold-locked brightness":
+        "주름 잠금 발광",
+    "Share the wave phase with the fragment stage and a plane becomes fabric.":
+        "fragment 스테이지와 파동 phase를 공유하면 평면이 천이 됩니다.",
+    "One heartbeat, many colonies":
+        "하나의 심장 박동, 여러 군락",
+    "A wave that lives in world space, so separate strokes still breathe together.":
+        "월드 스페이스에 사는 파동 — 시간 차로 그려진 획도 함께 호흡합니다.",
+
+    # === 각 데모 페이지 본문 ===
+    "Same stroke, same hand, two coordinate spaces. The sphere keeps turning after you let go — and only one of these two survives it.":
+        "같은 획, 같은 손, 두 좌표 공간. 손을 떼도 구체는 계속 회전합니다 — 둘 중 하나만 살아남습니다.",
+    "The environment is the lighting":
+        "환경이 곧 조명이다",
+    "The molten core is one float pushed through four mix() calls. Switch the terms off one at a time and see what each is worth.":
+        "용암 코어는 4개의 mix() 호출을 통과한 하나의 float입니다. 항을 하나씩 끄면서 각 항의 가치를 확인하세요.",
+    "A wave that lives in world space instead of in each object, so separate strokes painted minutes apart still pulse as one organism.":
+        "각 오브젝트가 아닌 월드 스페이스에 사는 파동 — 몇 분 간격으로 그려진 획도 하나의 유기체처럼 박동합니다.",
+    "The real crystal mode, driven by real sliders. Watch the rebuild counter refuse to move while you drag.":
+        "실제 슬라이더로 구동되는 실제 크리스털 모드. 드래그하는 동안 리빌드 카운터가 움직이기를 거부하는 걸 지켜보세요.",
+    "Two curtains, one wave. The right one shares the wave phase with its fragment shader, which is the entire difference between a wobbling plane and cloth.":
+        "두 휘장, 하나의 파동. 오른쪽 휘장은 파동 phase를 fragment 셰이더와 공유합니다 — 흔들리는 평면과 천의 전부 차이입니다.",
+    "Every instance knows the distance at which it was seeded. Growth is just the gap between that and how far the front has travelled.":
+        "모든 인스턴스는 자신이 시드된 거리를 압니다. 성장은 그 거리와 전선이 이동한 거리 사이의 갭입니다.",
+    "One pointer event, one raycast, and the little orthonormal basis every painting mode plants its geometry in. Toggle the BVH off to watch the cost of a pick jump.":
+        "하나의 포인터 이벤트, 하나의 레이캐스트, 모든 페인팅 모드가 지오메트리를 심는 작은 정규 직교 기저. BVH를 끄면 픽 비용이 폭증하는 걸 볼 수 있습니다.",
+    "Raw samples bunch where the hand slowed down. Modes need even spacing and a tangent frame, so every stroke gets resampled first.":
+        "손이 느려진 곳에서 거친 샘플이 뭉칩니다. 모드는 균일 간격과 탄젠트 프레임이 필요하므로, 모든 획은 먼저 리셈플링됩니다.",
+    "The fissure crack is a strip of vertices sitting on top of each other. Width, branch length and branch count all live in the vertex shader.":
+        "균열은 서로 포개진 정점들의 스트립입니다. 너비, 가지 길이, 가지 개수 모두 vertex 셰이더 안에 살고 있습니다.",
+    "Six emissive quads, prefiltered into an environment map, and no lights at all. Switch a quad off and its highlight goes with it.":
+        "환경 맵에 프리필터링된 6개의 발광 쿼드, 그리고 라이트는 0개. 쿼드 하나를 끄면 그 하이라이트도 함께 사라집니다.",
+
+    # === 데모 페이지 index.html 메인 헤더 ===
+    "the pieces": "각 메커니즘",
+    "Ten small pages, each one pulling a single mechanism out of the main app and looping it on its own. They exist so the moving parts can be watched instead of described: picking, resampling, culling, growth, and the four shaders that make the modes look alive. Most of them drive the production code directly.":
+        "10개의 작은 페이지로, 각각 메인 앱에서 단일 메커니즘만 꺼내어 자체적으로 반복 실행합니다. 정적 설명 대신 움직이는 부품을 직접 관찰할 수 있도록: 선택, 리셈플링, 컬링, 성장, 그리고 모드를 살아있게 만드는 4개의 셰이더. 대부분은 실제 프로덕션 코드를 직접 구동합니다.",
+    # index.html 카드 10번 짧은 버전
+    "Six emissive quads and no lights. Switch one off, lose a highlight.":
+        "환경 맵에 프리필터링된 6개의 발광 쿼드, 그리고 라이트는 0개. 쿼드 하나를 끄면 그 하이라이트도 함께 사라집니다.",
+
     # === index.html 정적 ===
     "Geometry Painter — three.js WebGPU": "지오메트리 페인터 — three.js WebGPU",
     "💎 Geometry Painter ": "💎 지오메트리 페인터 ",
@@ -186,6 +264,11 @@ HUD_PATTERNS = [
     (
         r'`Mode: \$\{this\.settings\.mode\} · Renderer: \$\{e\}`',
         '`모드: \${this.settings.mode} · 렌더러: \${e}`',
+    ),
+    # demos/index.html 메인 설명 — 줄바꿈 + 들여쓰기를 \s+ 로 흡수
+    (
+        r"Ten small pages,\s+each one pulling a single mechanism out of the main app and looping it\s+on its own\.\s+They exist so the moving parts can be watched instead of described:\s+picking, resampling, culling, growth, and the four shaders that make the modes look\s+alive\.\s+Most of them drive the production code directly\.",
+        "10개의 작은 페이지로, 각각 메인 앱에서 단일 메커니즘만 꺼내어 자체적으로 반복 실행합니다. 정적 설명 대신 움직이는 부품을 직접 관찰할 수 있도록: 선택, 리셈플링, 컬링, 성장, 그리고 모드를 살아있게 만드는 4개의 셰이더. 대부분은 실제 프로덕션 코드를 직접 구동합니다.",
     ),
 ]
 
@@ -417,7 +500,7 @@ def inject_toggle_ui(index_html: Path) -> None:
           // 정적 DOM (title, hud, modeBtn, drawFrame 등)
           applyLang(document.body, l);
           updateToggleUi(l);
-          // lil-gui 컨트롤의 런타임 라벨도 �신
+          // lil-gui 컨트롤의 런타임 라벨도 갱신
           if (window.__gpApplyLang) window.__gpApplyLang(l, i18n);
         }
         // i18n.json 로드 후 동작
@@ -438,7 +521,7 @@ def inject_toggle_ui(index_html: Path) -> None:
               var cur = getLang();
               var next = cur === 'ko' ? 'en' : 'ko';
               setLang(next);
-              // 페이지 텍스트 �신
+              // 페이지 텍스트 갱신
               applyAll(next);
             }
           });
