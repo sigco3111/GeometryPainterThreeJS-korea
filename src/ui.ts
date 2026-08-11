@@ -123,5 +123,43 @@ export function buildGui(app: App): GUI {
   }
   syncFolders(s.mode);
 
+  // 한/영 토글 훅 — 페이지 스크립트가 호출하면 모든 컨트롤러 라벨과 폴더
+  // 타이틀을 갱신한다. i18n.ko/en 객체를 window.__gpI18n으로 노출.
+  type Lang = 'ko' | 'en';
+  const collectControllers = (g: GUI): { setName: (n: string) => void; titles: { set: (n: string) => void }[] }[] => {
+    const out: any[] = [];
+    // lil-gui 컨트롤러는 _controllers 배열에 저장됨 — 타입 의존 회피
+    const internal: any = g as any;
+    (internal.controllers || []).forEach((c: any) => out.push(c));
+    (internal.folders || []).forEach((f: any) => out.push(...collectControllers(f as GUI)));
+    return out;
+  };
+  const allControllers = collectControllers(gui);
+  (window as any).__gpApplyLang = (lang: Lang, i18n: { en: Record<string,string>; ko: Record<string,string> }) => {
+    const enToKo = i18n.en || {};
+    const koToEn = i18n.ko || {};
+    const titleEl = gui.domElement.querySelector('.title');
+    if (titleEl) titleEl.textContent = lang === 'ko' ? '지오메트리 페인터' : 'Geometry Painter';
+    // 길이가 긴 키부터 — 부분 매칭 충돌 방지
+    const enKeys = Object.keys(enToKo).sort((a, b) => b.length - a.length);
+    const koKeys = Object.keys(koToEn).sort((a, b) => b.length - a.length);
+    const rewrite = (s: string, lang: Lang): string => {
+      let t = s;
+      if (lang === 'ko') enKeys.forEach(k => { if (t.indexOf(k) !== -1) t = t.split(k).join(enToKo[k]); });
+      else koKeys.forEach(k => { if (t.indexOf(k) !== -1) t = t.split(k).join(koToEn[k]); });
+      return t;
+    };
+    allControllers.forEach((c: any) => {
+      if (typeof c._name === 'string') c._name = rewrite(c._name, lang);
+      // lil-gui는 $name.setter() 또는 $name.set()이 라벨을 DOM에 반영
+      const nameCtl = c.$name;
+      if (nameCtl && typeof nameCtl.set === 'function') {
+        nameCtl.set(rewrite(c._name, lang));
+      } else if (nameCtl && typeof nameCtl.updateDisplay === 'function') {
+        nameCtl.updateDisplay();
+      }
+    });
+  };
+
   return gui;
 }
