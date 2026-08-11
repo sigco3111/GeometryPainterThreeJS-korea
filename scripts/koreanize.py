@@ -60,7 +60,7 @@ STRINGS = {
     "Rose": "로즈",
     "Prism": "프리즘",
     "Borealis": "보레알리스",
-    "Twilight": "트와일라�",
+    "Twilight": "트와일라이트",
     "Ember": "엠버",
     "Spectrum": "스펙트럼",
     "Abyss": "심연",
