@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && python3 scripts/koreanize.py",
+    "build:en": "tsc --noEmit && vite build",
+    "koreanize": "python3 scripts/koreanize.py",
     "preview": "vite preview"
   },
   "dependencies": {
