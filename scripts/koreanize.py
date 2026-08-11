@@ -315,7 +315,7 @@ def inject_toggle_ui(index_html: Path) -> None:
     toggle_css = """
       /* KO/EN language toggle (top-right) */
       #langToggle {
-        position: fixed; right: 16px; top: 14px; z-index: 9999;
+        position: fixed; right: 280px; top: 14px; z-index: 9999;
         display: flex; align-items: center; gap: 6px;
         padding: 7px 11px 7px 9px; border-radius: 999px;
         background: rgba(20, 22, 32, 0.85); backdrop-filter: blur(6px);
