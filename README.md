@@ -4,7 +4,7 @@
 > 브라우저에서 바로 실행되는 WebGPU 3D 페인터를 한국어로 즐기세요.
 
 <p align="center">
-  <a href="https://geometry-painter-kr.vercel.app/"><img alt="라이브 데모" src="https://img.shields.io/badge/🌐_라이브_데모-지오메트리_페인터-7c3aed?style=for-the-badge"/></a>
+  <a href="https://sigco3111.github.io/GeometryPainterThreeJS-korea/"><img alt="라이브 데모" src="https://img.shields.io/badge/🌐_라이브_데모-지오메트리_페인터-7c3aed?style=for-the-badge"/></a>
   <a href="https://github.com/achrefelouafi/GeometryPainterThreeJS"><img alt="원본 출처" src="https://img.shields.io/badge/📦_원본_출처-achrefelouafi%2FGeometryPainterThreeJS-181717?style=for-the-badge&logo=github"/></a>
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge"/></a>
 </p>
@@ -15,9 +15,9 @@
 
 | 항목 | URL |
 |------|-----|
-| 🇰🇷 **한국어 메인 앱 (기본)** | <https://geometry-painter-kr.vercel.app/> |
+| 🇰🇷 **한국어 메인 앱 (기본)** | <https://sigco3111.github.io/GeometryPainterThreeJS-korea/> |
 | 🇺🇸 영문 (우상단 `🌐 KO ⇄ EN` 버튼으로 즉시 전환) | 동일 URL |
-| 🎬 데모 10종 | <https://geometry-painter-kr.vercel.app/demos/> |
+| 🎬 데모 10종 | <https://sigco3111.github.io/GeometryPainterThreeJS-korea/demos/> |
 
 > 💡 WebGPU 활성 **Chrome / Edge / Arc** 권장. WebGPU 미지원 환경에서는 자동으로 WebGL2로 폴백됩니다.
 
@@ -205,16 +205,16 @@ applyAll(lang) 호출
 
 | # | 페이지 | 설명 |
 |---|--------|------|
-| 01 | [picking](https://geometry-painter-kr.vercel.app/demos/picking.html) | 레이캐스트 → hit, normal, tangent frame. BVH on/off 비용 비교 |
-| 02 | [anchor-space](https://geometry-painter-kr.vercel.app/demos/anchor-space.html) | 계속 회전하는 캔버스에서 world space vs anchor space |
-| 03 | [resample](https://geometry-painter-kr.vercel.app/demos/resample.html) | 거친 포인터 샘플 vs 균일 보간된 중심선 |
-| 04 | [cull](https://geometry-painter-kr.vercel.app/demos/cull.html) | 실제 크리스털 모드, 실제 슬라이더, 리빌드 0회. 컬링된 인스턴스는 유령으로 표시 |
-| 05 | [growth](https://geometry-painter-kr.vercel.app/demos/growth.html) | birth distance, growth window, linear vs easeOutBack |
-| 06 | [ribbon](https://geometry-painter-kr.vercel.app/demos/ribbon.html) | 균열 스트립 — 모든 정점이 중심선 위, 너비는 셰이더에서 |
-| 07 | [blackbody](https://geometry-painter-kr.vercel.app/demos/blackbody.html) | 열 램프를 항(term) 단위로 분해 |
-| 08 | [fold-light](https://geometry-painter-kr.vercel.app/demos/fold-light.html) | vertex / fragment wave phase 공유 |
-| 09 | [colony-pulse](https://geometry-painter-kr.vercel.app/demos/colony-pulse.html) | 월드 펄스 vs 오브젝트별 phase |
-| 10 | [studio](https://geometry-painter-kr.vercel.app/demos/studio.html) | 6개 환경 패널과 각 패널이 만드는 하이라이트 |
+| 01 | [picking](https://sigco3111.github.io/GeometryPainterThreeJS-korea/demos/picking.html) | 레이캐스트 → hit, normal, tangent frame. BVH on/off 비용 비교 |
+| 02 | [anchor-space](https://sigco3111.github.io/GeometryPainterThreeJS-korea/demos/anchor-space.html) | 계속 회전하는 캔버스에서 world space vs anchor space |
+| 03 | [resample](https://sigco3111.github.io/GeometryPainterThreeJS-korea/demos/resample.html) | 거친 포인터 샘플 vs 균일 보간된 중심선 |
+| 04 | [cull](https://sigco3111.github.io/GeometryPainterThreeJS-korea/demos/cull.html) | 실제 크리스털 모드, 실제 슬라이더, 리빌드 0회. 컬링된 인스턴스는 유령으로 표시 |
+| 05 | [growth](https://sigco3111.github.io/GeometryPainterThreeJS-korea/demos/growth.html) | birth distance, growth window, linear vs easeOutBack |
+| 06 | [ribbon](https://sigco3111.github.io/GeometryPainterThreeJS-korea/demos/ribbon.html) | 균열 스트립 — 모든 정점이 중심선 위, 너비는 셰이더에서 |
+| 07 | [blackbody](https://sigco3111.github.io/GeometryPainterThreeJS-korea/demos/blackbody.html) | 열 램프를 항(term) 단위로 분해 |
+| 08 | [fold-light](https://sigco3111.github.io/GeometryPainterThreeJS-korea/demos/fold-light.html) | vertex / fragment wave phase 공유 |
+| 09 | [colony-pulse](https://sigco3111.github.io/GeometryPainterThreeJS-korea/demos/colony-pulse.html) | 월드 펄스 vs 오브젝트별 phase |
+| 10 | [studio](https://sigco3111.github.io/GeometryPainterThreeJS-korea/demos/studio.html) | 6개 환경 패널과 각 패널이 만드는 하이라이트 |
 
 > 💡 URL 끝에 `?still=4` 붙이면 4초 시뮬 후 1프레임 렌더하고 정지 → 헤드리스 브라우저로 스틸 캡처 가능 (무한 rAF 루프가 idle 안 됨).
 
@@ -286,5 +286,5 @@ Copyright (c) 2026 sigco3111 (Korean localization, deployment)
 ---
 
 <p align="center">
-  <sub>🌐 <a href="https://geometry-painter-kr.vercel.app/">라이브 데모 보기</a> · 📦 <a href="https://github.com/achrefelouafi/GeometryPainterThreeJS">원본 저장소</a> · 🍴 <a href="https://github.com/sigco3111/GeometryPainterThreeJS-korea">이 포크</a></sub>
+  <sub>🌐 <a href="https://sigco3111.github.io/GeometryPainterThreeJS-korea/">라이브 데모 보기</a> · 📦 <a href="https://github.com/achrefelouafi/GeometryPainterThreeJS">원본 저장소</a> · 🍴 <a href="https://github.com/sigco3111/GeometryPainterThreeJS-korea">이 포크</a></sub>
 </p>
