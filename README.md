@@ -16,7 +16,6 @@
 | 항목 | URL |
 |------|-----|
 | 🇰🇷 **한국어 메인 앱 (기본)** | <https://sigco3111.github.io/GeometryPainterThreeJS-korea/> |
-| 🇺🇸 영문 (우상단 `🌐 KO ⇄ EN` 버튼으로 즉시 전환) | 동일 URL |
 | 🎬 데모 10종 | <https://sigco3111.github.io/GeometryPainterThreeJS-korea/demos/> |
 
 > 💡 WebGPU 활성 **Chrome / Edge / Arc** 권장. WebGPU 미지원 환경에서는 자동으로 WebGL2로 폴백됩니다.
